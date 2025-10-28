@@ -88,7 +88,7 @@ class TicketAgentState(TypedDict):
     current_movie_id: Optional[int]
     current_showtime_id: Optional[int]
     selected_seats: Optional[List[str]]
-    user_name: Optional[str]
+    user: Optional[str]
     candidate_movies: Optional[List[dict]]
     available_showtimes: Optional[List[dict]]
     available_seats: Optional[List[str]]
