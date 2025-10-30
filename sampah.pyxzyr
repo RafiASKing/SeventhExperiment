@@ -1,0 +1,81 @@
+"""
+MovieLiteral = Literal[tuple(ALL_MOVIE_TITLES)]
+
+class SelectMovieSchema(BaseModel):
+    """
+    Skema untuk memilih film.
+    Pilih satu judul film dari daftar 'MovieLiteral' yang paling cocok
+    dengan permintaan user.
+    """
+    movie_title: MovieLiteral = Field(
+        description="Judul film yang paling cocok dari daftar. "
+                    "Jika user meminta sesuatu yang tidak ada di daftar (misal 'Avatar') "
+                    "atau bicara di luar topik (misal 'aku cinta kamu'), "
+                    "pilih 'other'."
+    )
+    
+# 2. Gunakan @tool pada skema Pydantic-nya
+@tool(args_schema=SelectMovieSchema)
+def select_movie(movie_title: MovieLiteral) -> str:
+    """
+    Tool ini MENCATAT pilihan film yang sudah diputuskan oleh LLM.
+    LLM harus memilih 'movie_title' dari daftar yang disediakan.
+    """
+    # Di sini kita tidak perlu logika 'if/else' lagi.
+    # Jika LLM memanggil tool ini, 'movie_title' DIJAMIN
+    # sudah salah satu dari isi 'MovieLiteral'.
+    print(f"    > Tool dipanggil dengan: {movie_title}")
+    if movie_title == "other":
+        return "Pilihan 'other' terdeteksi."
+    return f"Film '{movie_title}' berhasil dipilih."
+
+model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+model_with_tool = model.bind_tools([select_movie])
+
+
+print("\n--- EKSPERIMEN 1: 'Kimi no Nawa' (Kognisi Terjemahan) ---")
+response_1 = model_with_tool.invoke("Aku mau nonton Kimi no Nawa dong")
+print("Hasil Tool Call 1:")
+print(response_1.tool_calls)
+
+print("\n--- EKSPERIMEN 2: 'AOT' (Kognisi Singkatan) ---")
+response_2 = model_with_tool.invoke("Pesen tiket buat AOT")
+print("Hasil Tool Call 2:")
+print(response_2.tool_calls)
+
+print("\n--- EKSPERIMEN 3: 'Dune 2' (Kognisi Sekuel) ---")
+response_3 = model_with_tool.invoke("Ada film Dune 2?")
+print("Hasil Tool Call 3:")
+print(response_3.tool_calls)
+
+print("\n--- EKSPERIMEN 4: 'Barby' (Kognisi Typo) ---")
+response_4 = model_with_tool.invoke("Aku mau nonton film Barby")
+print("Hasil Tool Call 4:")
+print(response_4.tool_calls)
+
+print("\n--- EKSPERIMEN 5: 'other' (Off-topic) ---")
+response_5 = model_with_tool.invoke("Aku cinta kamuuuuu, love youuuu")
+print("Hasil Tool Call 5:")
+print(response_5.tool_calls)
+
+# --- Rangkuman Hasil ---
+
+def get_choice(response):
+    if response.tool_calls:
+        # Nama argumennya sekarang 'movie_title'
+        return response.tool_calls[0]["args"]["movie_title"]
+    return "NO_TOOL_CALL (Model tidak memanggil tool)"
+
+terpilih_1 = get_choice(response_1)
+terpilih_2 = get_choice(response_2)
+terpilih_3 = get_choice(response_3)
+terpilih_4 = get_choice(response_4)
+terpilih_5 = get_choice(response_5)
+
+print("\n--- Rangkuman Hasil Eksperimen ---")
+print(f"1. Kimi no Nawa -> {terpilih_1}")
+print(f"2. AOT           -> {terpilih_2}")
+print(f"3. Dune 2        -> {terpilih_3}")
+print(f"4. Barby         -> {terpilih_4}")
+print(f"5. Off-topic     -> {terpilih_5}")
+"""
