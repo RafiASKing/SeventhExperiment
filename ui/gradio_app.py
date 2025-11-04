@@ -7,15 +7,15 @@ from io import StringIO
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from agent.workflow import SESSION_ID, app, ensure_model_bound, get_initial_state, session_states
+from agent.workflow import app, ensure_model_bound, get_initial_state
 
 try:
     import gradio as gr
-except ImportError:
-    import sys as _sys, subprocess
-    # Install otomatis jika belum ada (opsional, bisa dihapus jika sudah install via terminal)
-    subprocess.check_call([_sys.executable, "-m", "pip", "install", "-q", "gradio>=4.44.0"])
-    import gradio as gr
+except ImportError as e:
+    # Fail fast and rely on requirements.txt installation
+    raise ImportError(
+        "Gradio is not installed. Please install dependencies via 'pip install -r requirements.txt'."
+    ) from e
 
 # Kecil: tee stdout agar tetap tampil di console dan juga tertangkap ke buffer
 class _TeeIO:
@@ -35,22 +35,40 @@ class _TeeIO:
                 pass
 
 def _coerce_content_to_text(content) -> str:
-    if content is None:
-        return "(tidak ada konten)"
-    if isinstance(content, str):
-        return content
-    if isinstance(content, (list, tuple)):
-        return "\n".join(str(item) for item in content if item is not None)
-    if isinstance(content, dict):
-        try:
-            import json
-            return json.dumps(content, ensure_ascii=False, indent=2)
-        except Exception:
-            return str(content)
-    return str(content)
+    # Ekstrak hanya teks dari struktur konten (abaikan extras/signature, dll.)
+    def _flatten(obj) -> list[str]:
+        if obj is None:
+            return []
+        if isinstance(obj, str):
+            return [obj]
+        if isinstance(obj, dict):
+            # Format umum penyedia: {"type":"text","text":"..."}
+            if obj.get("type") == "text" and isinstance(obj.get("text"), str):
+                return [obj["text"]]
+            # Gemini/LangChain sering taruh teks langsung di "text"
+            if isinstance(obj.get("text"), str):
+                return [obj["text"]]
+            # Beberapa provider menaruh list di "parts"
+            parts = obj.get("parts")
+            if isinstance(parts, list):
+                out: list[str] = []
+                for p in parts:
+                    out += _flatten(p)
+                return out
+            # Abaikan metadata lain (extras, citations, dll.)
+            return []
+        if isinstance(obj, (list, tuple)):
+            out: list[str] = []
+            for item in obj:
+                out += _flatten(item)
+            return out
+        return [str(obj)]
+
+    parts = [p for p in _flatten(content) if isinstance(p, str) and p.strip()]
+    return "\n".join(parts) if parts else "(tidak ada konten)"
 
 # Catatan:
-# - Tetap menggunakan session_states dan SESSION_ID dari workflow agar kompatibel.
+# - Menggunakan state per-sesi via gr.State (tanpa global session store), aman untuk 2–5 user.
 # - Tetap mencetak input user dan output agen ke console, plus semua print log dari tools/nodes Anda akan tampil di output notebook/console.
 
 def _compute_output_to_show(final_state) -> str:
@@ -62,12 +80,16 @@ def _compute_output_to_show(final_state) -> str:
 
     if isinstance(last_agent_message, AIMessage):
         if getattr(last_agent_message, "tool_calls", None):
-            # Cek apakah tool call terakhir adalah ask_user
-            last_tool_call = last_agent_message.tool_calls[-1]
-            if last_tool_call["name"] == "ask_user":
-                output_to_show = last_tool_call["args"]["question"]
-            else:
-                # Untuk tool lain, tampilkan pesan generik
+            # Cek apakah tool call terakhir adalah ask_user (defensif)
+            try:
+                tc = last_agent_message.tool_calls[-1]
+                if tc.get("name") == "ask_user":
+                    args = tc.get("args") or {}
+                    q = args.get("question")
+                    output_to_show = q if isinstance(q, str) and q.strip() else "(Agen sedang memproses...)"
+                else:
+                    output_to_show = "(Agen sedang memproses...)"
+            except Exception:
                 output_to_show = "(Agen sedang memproses...)"
         elif getattr(last_agent_message, "content", None):
             # Tampilkan content jika tidak ada tool call (jawaban/konfirmasi final)
@@ -151,9 +173,6 @@ def process_message(user_text: str, chat_history: list, state_dict: dict):
         logs_md_value = f"```text\n{(buf.getvalue() or '').strip()}\n```"
         return chat_history, state_dict, logs_md_value, {}
 
-    # Simpan state sesi (kompatibel dengan pola sebelumnya)
-    session_states[SESSION_ID] = final_state
-
     # Tentukan output yang ditampilkan ke user (kompatibel dengan logika lama)
     bot_text = _compute_output_to_show(final_state)
 
@@ -176,9 +195,9 @@ def process_message(user_text: str, chat_history: list, state_dict: dict):
 
 def reset_state():
     # Reset state sesi dan bersihkan riwayat chat
-    session_states[SESSION_ID] = get_initial_state(force_refresh_movies=True)
+    new_state = get_initial_state(force_refresh_movies=True)
     print("\n[RESET] State direset.")
-    return [], session_states[SESSION_ID]
+    return [], new_state
 
 
 with gr.Blocks(title="Agen Manajer Booking") as demo:
@@ -229,6 +248,13 @@ with gr.Blocks(title="Agen Manajer Booking") as demo:
     clear.click(on_clear, outputs=[chatbot, state_gr, logs_md, tool_json])
 
 # Jalankan UI di notebook; jika di script, akan buka di http://127.0.0.1:7860
+
+# Aktifkan antrian request; gunakan default konfigurasi agar kompatibel dengan versi Gradio terbaru
+# Aktifkan antrian request; gunakan fallback agar aman lintas versi Gradio
+try:
+    demo.queue(default_concurrency_limit=8)
+except TypeError:
+    demo.queue()
 
 
 def launch_demo(*, inline: bool = False, share: bool = False, **launch_kwargs):

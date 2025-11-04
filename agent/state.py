@@ -18,6 +18,7 @@ class TicketAgentState(TypedDict):
     # --- KONTEKS SESAAT UNTUK SELEKTOR ---
     context_showtimes: Optional[List[dict]]
     context_seats: Optional[List[str]]
+    context_seats_summary: Optional[str]
 
     # --- META-DATA ---
     confirmation_data: Optional[dict]

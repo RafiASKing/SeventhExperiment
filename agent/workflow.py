@@ -108,19 +108,20 @@ def get_movies_context(*, force_refresh: bool = False) -> list[dict]:
 
 def get_initial_state(*, force_refresh_movies: bool = False) -> TicketAgentState:
     movies_context = get_movies_context(force_refresh=force_refresh_movies)
-    return TicketAgentState(
-        messages=[],
-        all_movies_list=movies_context,
-        current_movie_id=None,
-        current_showtime_id=None,
-        selected_seats=None,
-        customer_name=None,
-        context_showtimes=None,
-        context_seats=None,
-        context_seats_summary="N/A",
-        confirmation_data=None,
-        last_error=None,
-    )
+    # TypedDicts should be instantiated via a plain dict literal
+    return {
+        "messages": [],
+        "all_movies_list": movies_context,
+        "current_movie_id": None,
+        "current_showtime_id": None,
+        "selected_seats": None,
+        "customer_name": None,
+        "context_showtimes": None,
+        "context_seats": None,
+        "context_seats_summary": "N/A",
+        "confirmation_data": None,
+        "last_error": None,
+    }
 
 
 # PENYIMPANAN STATE (PERLU DIIMPLEMENTASIKAN LEBIH NANTI)

@@ -72,6 +72,17 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Tampilkan UI secara inline (berguna saat dipanggil dari notebook).",
     )
+    parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Alamat bind untuk server Gradio (default: 0.0.0.0).",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=7860,
+        help="Port untuk server Gradio (default: 7860).",
+    )
     return parser.parse_args()
 
 
@@ -89,7 +100,12 @@ def main() -> None:
     from ui.gradio_app import launch_demo
     print("--- Agen Manajer Booking (Gradio) ---")
     print("Mengaktifkan antarmuka web di http://127.0.0.1:7860 ...")
-    launch_demo(inline=args.inline, share=args.share)
+    launch_demo(
+        inline=args.inline,
+        share=args.share,
+        server_name=args.host,
+        server_port=args.port,
+    )
 
 
 if __name__ == "__main__":

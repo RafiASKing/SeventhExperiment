@@ -84,7 +84,7 @@ def node_booking_manager(state: TicketAgentState) -> dict:
             print(
                 "     > Peringatan: LLM tidak memanggil tool (atau mungkin memang tidak perlu)."
             )
-            updates["last_error"] = "LLM gagal memanggil tool."
+            updates["last_error"] = "LLM gagal memanggil tool." # ini dimatikan saja dulu, tidak manggil tool itu normal! 
 
         # 4. Proses SEMUA tool call
         for tool_call in ai_response.tool_calls:
