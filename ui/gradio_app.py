@@ -257,15 +257,26 @@ except TypeError:
     demo.queue()
 
 
-def launch_demo(*, inline: bool = False, share: bool = False, **launch_kwargs):
-    """Luncurkan aplikasi Gradio untuk agen manajer booking."""
+def launch_demo(*, inline: bool = False, share: bool = False, favicon_path: str | None = None, **launch_kwargs):
+    """Luncurkan aplikasi Gradio untuk agen manajer booking.
 
-    return demo.launch(
-        inline=inline,
-        share=share,
-        show_error=True,
+    Parameters:
+    - favicon_path: optional path to a favicon (.ico or .png). If provided and exists,
+      it will be forwarded to gradio's `launch` as `favicon_path`.
+    """
+
+    # Build kwargs defensively so we don't break callers that pass extra launch args
+    kwargs = {
+        "inline": inline,
+        "share": share,
+        "show_error": True,
         **launch_kwargs,
-    )
+    }
+    if favicon_path:
+        # Forward to gradio if caller provided a favicon path
+        kwargs["favicon_path"] = favicon_path
+
+    return demo.launch(**kwargs)
 
 
 if __name__ == "__main__":

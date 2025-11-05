@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
@@ -100,12 +101,29 @@ def main() -> None:
     from ui.gradio_app import launch_demo
     print("--- Agen Manajer Booking (Gradio) ---")
     print("Mengaktifkan antarmuka web di http://127.0.0.1:7860 ...")
-    launch_demo(
-        inline=args.inline,
-        share=args.share,
-        server_name=args.host,
-        server_port=args.port,
-    )
+
+    # Build launch kwargs and only pass favicon_path if the file exists to avoid
+    # passing a non-existent path (which some environments may treat as an error).
+    launch_kwargs = {
+        "inline": args.inline,
+        "share": args.share,
+        "server_name": args.host,
+        "server_port": args.port,
+    }
+
+    # Prefer an .ico file (better legacy browser support). Fall back to png if ico missing.
+    default_favicon_ico = os.path.join("ui", "static", "favicon.ico")
+    default_favicon_png = os.path.join("ui", "static", "favicon.png")
+    try:
+        if os.path.exists(default_favicon_ico):
+            launch_kwargs["favicon_path"] = default_favicon_ico
+        elif os.path.exists(default_favicon_png):
+            launch_kwargs["favicon_path"] = default_favicon_png
+    except Exception:
+        # If anything goes wrong while checking the file system, skip favicon.
+        pass
+
+    launch_demo(**launch_kwargs)
 
 
 if __name__ == "__main__":
