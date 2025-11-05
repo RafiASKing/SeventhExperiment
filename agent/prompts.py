@@ -74,6 +74,7 @@ def get_focus_instruction(state: TicketAgentState) -> str:
         return (
             "FOKUS SAAT INI: Tentukan 'selected_seats'. "
             "Perhatikan PETA KURSI: Format kursi yang valid adalah huruf KAPITAL diikuti angka (misal: 'A1', 'B2'). "
+            "KONTEKS DENAH: Layar ada di bagian DEPAN. Baris M adalah baris PALING DEPAN (terdekat layar), dan baris A adalah baris PALING BELAKANG. "
             "Lakukan kognisi: Jika user mengetik 'a1' atau 'kursi b2', Anda WAJIB menafsirkannya dan memanggil 'record_selected_seats' dengan format yang benar dan tervalidasi (misal: ['A1', 'B2']). "
             "Periksa juga 'Kursi Tersedia' di PETA KURSI untuk memastikan kursi yang dipilih user belum terisi. "
             "Jika user memilih kursi yang SUDAH TERISI, WAJIB panggil 'ask_user' untuk memberi tahu (misal: 'Maaf, kursi B2 sudah terisi. Silakan pilih kursi lain.'). "
