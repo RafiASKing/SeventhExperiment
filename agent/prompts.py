@@ -74,7 +74,6 @@ def get_focus_instruction(state: TicketAgentState) -> str:
         return (
             "FOKUS SAAT INI: Tentukan 'selected_seats'. "
             "Perhatikan PETA KURSI: Format kursi yang valid adalah huruf KAPITAL diikuti angka (misal: 'A1', 'B2'). "
-            "KONTEKS DENAH: Layar ada di bagian DEPAN. Baris M adalah baris PALING DEPAN (terdekat layar), dan baris A adalah baris PALING BELAKANG. "
             "Lakukan kognisi: Jika user mengetik 'a1' atau 'kursi b2', Anda WAJIB menafsirkannya dan memanggil 'record_selected_seats' dengan format yang benar dan tervalidasi (misal: ['A1', 'B2']). "
             "Periksa juga 'Kursi Tersedia' di PETA KURSI untuk memastikan kursi yang dipilih user belum terisi. "
             "Jika user memilih kursi yang SUDAH TERISI, WAJIB panggil 'ask_user' untuk memberi tahu (misal: 'Maaf, kursi B2 sudah terisi. Silakan pilih kursi lain.'). "
@@ -234,7 +233,7 @@ def get_simple_master_prompt(state: TicketAgentState) -> List[AnyMessage]:
         f"- Jadwal Tersedia:\n{showtime_context_str}\n"
         f"- Kursi Tersedia: {seat_context_str}\n"
         f"- Error Terakhir: {state.get('last_error') or 'Tidak ada'}",
-        f"\n**PETA KURSI (SEAT_MAP):**\n{seat_map_context_str}",
+        f"\n**PETA KURSI (SEAT_MAP):**\n{seat_map_context_str}\n\n**KONTEKS DENAH:**\nLayar ada di bagian DEPAN. Baris M adalah baris PALING DEPAN (terdekat layar), dan baris A adalah baris PALING BELAKANG.",
         f"\n**INSTRUKSI FOKUS:**\n{focus_instruction}",
     ]
 
