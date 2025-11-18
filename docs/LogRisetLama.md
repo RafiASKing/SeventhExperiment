@@ -1,50 +1,77 @@
-## Catatan Riset: Evolusi Desain Agen Booking Bioskop Tiketa
+# Log Riset dan Experiment: Arsitekstur, Metode dan Approach yang dipilih
 
-### Latar Belakang & Tujuan Awal
-Proyek ini dimulai dengan tujuan membangun agen percakapan yang *robust* untuk menangani pemesanan tiket bioskop. Arsitektur awal yang dipilih adalah **State Machine** (via LangGraph) yang dikombinasikan dengan **Heuristic Matching**.
+## 1. Arsitektur V1: Explicit State Machine (The Rigid Approach/cara kaku)
 
-Pendekatan ini dipilih untuk memberikan "pagar pembatas" (guardrails) yang kaku pada LLM, memastikan alur transaksi (Film -> Jadwal -> Kursi -> Konfirmasi) diikuti dengan benar dan mencegah halusinasi.
+### Desain Awal
+Awalnya, sistem dibangun menggunakan pendekatan seperti DAG yang ketat dengan banyak node spesifik:
+`Classify_Intent` -> `Browsing_Node` / `Booking_Node` -> `Find_Movie` -> `Find_Showtime` -> ...
 
-### Metode Awal: Heuristic Matching (State Machine Kaku)
+### Kegagalan Struktural (Architectural Failures)
+Setelah pengujian, arsitektur ini memiliki cacat fundamental yang membuat UX menjadi buruk ("Robotic"):
 
-Arsitektur awal sangat bergantung pada logika Python yang eksplisit untuk memandu LLM:
+1.  **The "Intent Classification" Trap:**
+    *   **Masalah:** Memaksa klasifikasi biner di awal (`browsing` vs `booking`) adalah kesalahan fatal.
+    *   **Kasus Nyata:** User bertanya "Jadwal Dune jam berapa?". Ini secara teknis adalah *browsing* (melihat data), tapi secara implisit adalah langkah awal *booking*. Memisahkan node ini membuat state sering bocor atau salah routing.
+    *   **Dampak:** User terjebak di *loop* browsing dan sulit pindah ke booking tanpa mereset percakapan.
 
-1.  **`TicketAgentState` Kaku:** *State* melacak tidak hanya data (`movie_id`), tetapi juga alur percakapan (`current_question: "ask_movie"`).
-2.  **Klasifikasi Generik:** Satu node `classify_intent` (dengan tool `extract_intent_and_entities`) digunakan untuk menebak niat dan entitas user secara umum.
-3.  **Logika Heuristik Berat:** Fungsi-fungsi inti seperti `_match_movie_from_text` dan `_match_showtime_from_text` dibuat untuk mem-parsing input mentah user ("yang ketiga", "jam 7 malam", "aot") dan mencocokkannya dengan data yang ada di *state* (`candidate_movies`, `available_showtimes`) menggunakan `regex` dan logika `if-else`.
+2.  **Linearity vs. One-Shot:**
+    *   **Masalah:** Graph linear memaksa user menjawab satu per satu (Film -> Jadwal -> Kursi).
+    *   **Kasus Nyata:** Jika user input "Pesan 2 tiket Dune jam 7 malam", sistem V1 gagal karena node `Find_Movie` belum melempar data ke node `Find_Showtime`.
+    *   **Dampak:** Sistem tidak mampu menangani *compound instructions* (instruksi majemuk).
 
-### Permasalahan yang Ditemukan ("Heuristic Hell")
+3.  **State vs. Chat History Disconnect:**
+    *   Sistem terlalu bergantung pada variable `state` terisolasi, mengabaikan nuansa di `chat_history`. Akibatnya, Agen terasa "pelupa" atau tidak nyambung jika user mengubah konteks sedikit saja.
 
-Setelah implementasi dan pengujian, pendekatan Heuristic Matching terbukti sangat rapuh dan tidak skalabel. Masalah yang muncul bersifat fundamental:
+---
 
-1.  **Beban Kognitif yang Salah:** Arsitektur ini memaksa *developer* (kita) untuk mengantisipasi *setiap* variasi linguistik pengguna. Kita pada dasarnya membangun NLU (Natural Language Understanding) engine yang buruk dari nol, sementara kita memiliki LLM yang sangat mampu diabaikan.
-2.  **Kode Rapuh & Kompleks:** Setiap *edge case* baru ("3" vs "jam 3", "anime" vs "animation", "kimi no nawa" vs "your name") membutuhkan penambalan `regex` atau `if-else` baru. Ini mengarah ke kode yang panjang, sulit dipelihara, dan penuh bug tersembunyi.
-3.  **Kebocoran State (State Leaks):** Ketika heuristik gagal (misal, `_match_showtime_from_text` mengembalikan `None`), *state* tidak diperbarui. `main_router` kemudian bingung dan sering kali salah merutekan alur (misal, "bocor" ke `browsing_agent` di tengah alur booking), yang menyebabkan pengalaman pengguna yang rusak (amnesia, looping, halusinasi).
-4.  **Kegagalan Fleksibilitas:** Pendekatan ini sangat buruk dalam menangani perubahan pikiran atau kueri "satu tembakan" (*one-shot*) di mana pengguna memberikan semua informasi sekaligus.
+## 2. Arsitektur V2: Limited ReAct Loop (The Flexible Approach/cara flexible)
 
-Singkatnya, kita berakhir di **"neraka heuristik" (heuristic hell)**, di mana kita lebih banyak menghabiskan waktu untuk menambal logika Python daripada memanfaatkan kekuatan kognitif LLM.
+### Perubahan Cara
+Saya membuang pendekatan linear dan beralih ke **Single Manager Loop** dengan **Tool-Use Pattern**. Tidak ada lagi node `Find_Movie` atau `Select_Seat`. Hanya ada satu node cerdas (`Booking Manager`) yang memutuskan alat apa yang dipakai berdasarkan konteks dinamis.
 
-### Perubahan Pendekatan: Contextual Selector Pattern
+### Key Engineering Decisions
 
-Untuk mengatasi masalah ini, kami mempensiunkan pendekatan Heuristic Matching dan beralih ke **Contextual Selector Pattern**.
+#### A. Penghapusan Node Klasifikasi (Classifier-Free Guidance)
+*   **Keputusan:** Menghapus node `classify_intent`.
+*   **Alasan:** Niat user itu fluid. "Lihat jadwal" bisa berubah jadi "booking" dalam waktu yang dekat.
+*   **Solusi:** Biarkan LLM menentukan intensi secara implisit lewat pemilihan *tools*. Jika user tanya jadwal, LLM panggil `get_showtimes`. Jika user langsung pilih kursi, LLM panggil `record_seats`. State dikelola secara organik/lebih natural, bukan dipaksa oleh Router.
 
-**Konsep Inti:**
-Daripada menggunakan logika Python untuk *menebak* maksud user, kita **meminta LLM untuk memilih** dari daftar opsi yang valid.
+#### B. Context Injection vs. Retrieval Tool
+*   **Masalah:** Bagaimana cara LLM tahu film apa yang tayang?
+*   **Opsi A (Tool):** LLM memanggil `search_movie(query="batman")`.
+*   **Opsi B (Context):** Inject semua film yang sedang tayang ke dalam System Prompt.
+*   **Opsi C (Tool):** RAG.
+*   **Keputusan:** **Opsi B (Context Injection).**
+*   **Rasional:**
+    *   Jumlah film aktif di bioskop jarang melebihi 20-30 judul (bukan jumlah token yang signifikan).
+    *   **Analogi Resepsionis:** Kasir bioskop tidak mengetik "Batman" di search bar setiap kali ada pelanggan. Mereka melihat daftar di layar mereka. Ini juga mempercepat respon (mengurangi 1 round-trip tool call jika menggunakan Opsi A maupun C).
 
-**Implementasi Baru:**
-1.  **Hapus Heuristik:** Fungsi `_match_movie_from_text` dan `_match_showtime_from_text` (dan regex kompleksnya) **dihapus seluruhnya**.
-2.  **Node Klasifikasi Cerdas:** `node_classify_intent` menjadi jauh lebih cerdas dan sadar konteks.
-    * Jika `current_question == "ask_movie"`, node ini **secara dinamis membangun prompt baru** yang berisi daftar `candidate_movies`.
-    * LLM kemudian diinstruksikan: "Ini input user: 'yang ketiga'. Ini daftarnya: [1. Akira (ID: 1), 2. Gundam (ID: 6), 3. Your Name (ID: 2)]. Kembalikan HANYA ID yang benar."
-    * LLM, dengan kemampuan kognitifnya, akan dengan mudah mencocokkan "yang ketiga" atau "your name" ke `ID: 2`.
-3.  **Peran Dibalik:**
-    * **Sebelumnya:** Python bekerja keras (regex), LLM menebak secara generik.
-    * **Sekarang:** LLM bekerja keras (pencocokan kontekstual), Python hanya memvalidasi output (misal, `if result.isdigit()`).
+#### C. Sequential Data Loading (Token Management)
+*   **Tantangan:** Tidak mungkin meng-inject *seluruh* jadwal (Showtimes) untuk semua film ke dalam prompt (300+ kombinasi waktu).
+*   **Solusi:** Penerapan filter bertahap (tapi tidak berlebihan sampai kaku)
+    1.  Prompt awal hanya berisi **Daftar Film**.
+    2.  Setelah Movie ID terpilih/terdeteksi -> Panggil Tool `get_showtimes(movie_id)`.
+    3.  Hasil jadwal di-inject ke prompt putaran berikutnya.
+    *   Ini meniru alur kerja nyata resepsionis/kasir bioskop: Pilih Film dulu, baru layar menampilkan Jam Tayang.
 
-### Keuntungan Pendekatan Baru
+#### D. Separation of Concerns: "Read" vs "Write" Tools
+*   **Masalah:** Di V1, mencari jadwal seringkali tidak sengaja "mengunci" film tersebut di state.
+*   **Solusi:** Memisahkan tools menjadi dua jenis:
+    1.  **Read Tools (Stateless):** `get_showtimes`, `get_available_seats`, `get_movie_details`. Tool ini hanya *mengambil* informasi untuk ditampilkan ke user. Tidak mengubah `booking_state`.
+    2.  **Write Tools (Stateful):** `record_selected_movie`, `record_selected_seats`. Tool ini secara eksplisit dipanggil LLM hanya ketika user sudah *komit* dengan pilihannya, atau setidaknya sudah jelas memilih sehingga tetap bisa act untuk permintaan one shot (perintah lengkap).
+*   **Hasil:** User bisa tanya-tanya jadwal 5 film berbeda tanpa merusak formulir pemesanan, karena `current_movie_id` hanya berubah jika `record_...` dipanggil.
 
-1.  **Memanfaatkan Kognisi LLM:** Kita menggunakan LLM untuk tugas yang paling cocok: pemahaman bahasa alami yang bernuansa.
-2.  **Kode Lebih Bersih & Sederhana:** Menghapus ratusan baris kode heuristik yang rapuh.
-3.  **Anti-Halusinasi:** LLM tetap terkendali. Ia *hanya bisa* memilih dari ID valid yang kita berikan di dalam *prompt* dinamis, tidak bisa mengarang ID atau judul film sendiri.
-4.  **Lebih Robust:** Jauh lebih baik dalam menangani variasi linguistik ("yang rabu", "jam 4 sore", "no. 3") tanpa perlu kode tambahan.
-5.  **Perbaikan State yang Jelas:** Karena LLM mengembalikan ID yang pasti, *state* (`current_movie_id`, `current_showtime_id`) diperbarui secara andal, mencegah "kebocoran" alur.
+#### E. Prompt Dinamis sebagai "State Monitor"
+*   Alih-alih logika Python yang rumit ("Jika state A kosong, tanya B"), saya menggunakan **Dynamic System Prompt**.
+*   Prompt secara *real-time* merefleksikan isi state:
+    *   *"Formulir saat ini: Film=Terisi, Jadwal=Kosong -> FOKUS: Cari Jadwal."*
+*   Ini memungkinkan LLM menangani perubahan mendadak (misal: user sudah pilih kursi, tiba-tiba bilang "eh ganti film deh"). LLM melihat state berubah, dan secara kognitif tahu harus mereset proses tanpa perlu kode `if-else` manual. Tapi tetap prompt ini secara dinamisnya ditentukan oleh state formilir actualnya dibelakang, contohnya dapat dilihat pada bagian [FOKUS INSTRUKSI] di prompt utama.
+
+### Hasil Akhir
+Sistem berubah dari "Formulir kaku berbasis Chatbot" menjadi "Agen Konsultan Bioskop" yang mampu menangani:
+1.  **One-shot Prompting:** "Pesan 2 tiket posisi paling tengah dan baris paling dekat layar (aware denah), gundam jam 7 mlm besok (aware current time) atas nama rafi" (LLM langsung booking 2 slot sekaligus).
+2.  **Non-Linear Flows:** User bisa loncat dari pilih jadwal kembali ke pilih film.
+3.  **Ambiguity Handling:** Menggunakan penalaran LLM untuk mencocokkan "film yang robot-robotan itu" ke "Transformers", atau "betmen" ke "The Dark Knight", atau "kimi no nawa" ke "your name" (lewat Context Injection) tanpa search query manual.
+
+
+Berikut untuk log percobaan project pribadi ini
