@@ -1,5 +1,4 @@
--- Database Schema for Tiketa RDS:
--- This file is for reference and documentation purposes.
+-- File ini pure hanya untuk referensi schema db RDS AWS tiketa
 
 -- DBeaver DDL Script
 -- Tables
