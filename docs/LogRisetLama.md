@@ -73,5 +73,7 @@ Sistem berubah dari "Formulir kaku berbasis Chatbot" menjadi "Agen Konsultan Bio
 2.  **Non-Linear Flows:** User bisa loncat dari pilih jadwal kembali ke pilih film.
 3.  **Ambiguity Handling:** Menggunakan penalaran LLM untuk mencocokkan "film yang robot-robotan itu" ke "Transformers", atau "betmen" ke "The Dark Knight", atau "kimi no nawa" ke "your name" (lewat Context Injection) tanpa search query manual.
 
-
-Berikut untuk log percobaan project pribadi ini
+### Kedepannya
+1. Optimasi penggunaan token, dari sisi inject konteks, instruksi dan chat history
+2. Penanganan async, dan jgua multi user (ubah cara penangannan state dan set up worker dll), lalu optimalkan cara connect ke db nya agar tidak perlu engine.connect() berkali-kali setiap tool calls.
+3. Buat dataset dan metode evaluasi yang baik karena saat ini belum ada, baru hanya ditest dan coba manual langsung.
