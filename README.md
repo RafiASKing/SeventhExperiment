@@ -9,20 +9,20 @@
 >
 > Kami mendokumentasikan transisi dari "Heuristic Hell" ke "Flexible ReAct Loop", tantangan *engineering*, dan keputusan desain kritis di sini:
 >
-> 👉 **[BACA: Evolusi Arsitektur & Log Riset (V1 vs V2)](./Catatan_Penting_Desain_Sistem.md)** 👈
+> 👉 **[BACA: Pergantian Arsitektur & Log Riset (V1 vs V2)](./docs/Catatan_Penting_Desain_Sistem.md)** 👈
 >
-> *(Sangat disarankan membaca dokumen di atas untuk memahami konteks "Why & How" di balik kode ini)*
+> *(Sangat disarankan membaca dokumen di atas untuk memahami konteks "Why & How" di balik kode dan metode ini)*
 
 ---
 
 ## 💡 Mengapa V2? (The Problem Solved)
 
-Sistem V1 (SixthExperiment) terjebak dalam *linear logic* yang rapuh. V2 hadir dengan pendekatan **LangGraph Cyclic Flow** yang menawarkan:
+Sistem V1 (SixthExperiment) terjebak dalam *linear logic* yang rapuh. V2 hadir dengan pendekatan **LangGraph Looping Flow** yang menawarkan:
 
-* **🛡️ Robustness via Guardrails:** Meskipun menggunakan loop ReAct yang fleksibel, agen tetap dijaga oleh *Contextual Tool Definitions* dan *Dynamic System Prompts* agar tidak halusinasi.
-* **🧠 One-Shot Inference:** User bisa langsung perintah: *"Pesenin tiket Dune jam 7 malem buat 2 orang, kursi tengah"* dan agen langsung mengisi formulir internal tanpa bertanya satu per satu.
+* **🛡️ Robustness via Guardrails:** Meskipun menggunakan loop ReAct yang fleksibel, agen tetap dijaga oleh *Contextual Tool Definitions*, *State formulir* dan *Dynamic System Prompts* agar tidak halusinasi.
+* **🧠 One-Shot Inference:** User bisa langsung perintah: *"Pesenin tiket Dune jam 7 malem buat 2 orang, kursi paling tengah baris paling depan (kamu as agent langsung pilhin) hari ini atas nama rafi"* dan agen langsung mengisi formulir internal tanpa bertanya satu per satu. Tidak perlu selalu back to back chat pertahap.
 * **🔄 Non-Linear Navigation:** User bisa melompat dari langkah konfirmasi kembali ke pemilihan jadwal tanpa merusak *state* aplikasi.
-* **🧩 Fuzzy & Contextual Matching:** Menangani *"film yang ada robotnya"*, *"jam 7 aja"*, atau typo *"betmen"* menggunakan kognisi LLM, bukan RegEx.
+* **🧩 Fuzzy & Contextual Matching:** Menangani *"film yang ada robotnya"*, *"jam 7 aja"*, atau typo *"betmen"* menggunakan kognisi LLM, bukan RegEx maupun Query LIKE lewat tools.
 
 ## 🛠️ Cara Install & Jalanin
 
@@ -35,7 +35,7 @@ pip install -r requirements.txt
 
 # 3. Setup env
 cp .env.example .env
-# Masukkan API KEY (OpenAI/Groq/dll)
+# Masukkan API KEY (Gemini only untuk saat ini)
 
 # 4. Run Agent
 python main.py
