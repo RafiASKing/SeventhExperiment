@@ -1,39 +1,41 @@
-# Tiketa AI Agent (V2) 🎬🍿
+# Tiketa LLM Agent (V2) 🎬🍿
 
-![Status](https://img.shields.io/badge/Status-Active-success) ![Architecture](https://img.shields.io/badge/Architecture-ReAct_Loop-blue) ![Python](https://img.shields.io/badge/Python-3.10+-yellow)
+![Status](https://img.shields.io/badge/Status-Active-success) ![Architecture](https://img.shields.io/badge/Architecture-LangGraph_Guarded_Loop-blueviolet)
 
-Agen pemesanan tiket bioskop berbasis LLM yang dirancang untuk menangani percakapan kompleks, perubahan konteks, dan instruksi *one-shot*.
+**Tiketa V2** adalah agen pemesanan tiket bioskop cerdas yang dibangun di atas **LangGraph**. Menggunakan arsitektur *Guarded Cyclic Agent*, sistem ini menggabungkan fleksibilitas penalaran LLM dengan ketangguhan manajemen *state* untuk menangani transaksi kompleks secara natural.
 
-> ⚠️ **PENTING BUAT DEV/RESEARCHER:**
-> Project ini adalah **Versi 2 (Re-write)** dari eksperimen sebelumnya (*SixthExperiment*). Kami melakukan perubahan arsitektur total dari *Explicit State Machine* yang kaku menjadi *Limited ReAct Loop*.
+> 🚨 **ARCHITECTURAL DEEP DIVE:**
+> Repo ini adalah **Re-write total** dari [SixthExperiment](https://github.com/RafiASKing/SixthExperiment) (V1) yang gagal karena pendekatan *State Machine* yang terlalu kaku.
 >
-> Baca alasan teknis, kegagalan V1, dan keputusan desain lengkap di:
-> 👉 **[Catatan_Penting_Desain_Sistem.md](./Catatan_Penting_Desain_Sistem.md)** 👈
-> *(Sangat direkomendasikan baca ini dulu sebelum diving ke code)*
+> Kami mendokumentasikan transisi dari "Heuristic Hell" ke "Flexible ReAct Loop", tantangan *engineering*, dan keputusan desain kritis di sini:
+>
+> 👉 **[BACA: Evolusi Arsitektur & Log Riset (V1 vs V2)](./Catatan_Penting_Desain_Sistem.md)** 👈
+>
+> *(Sangat disarankan membaca dokumen di atas untuk memahami konteks "Why & How" di balik kode ini)*
 
 ---
 
-## ✨ Fitur Utama (V2)
+## 💡 Mengapa V2? (The Problem Solved)
 
-Berbeda dengan V1 yang sering *stuck* di logic *if-else*, V2 ini mampu:
+Sistem V1 (SixthExperiment) terjebak dalam *linear logic* yang rapuh. V2 hadir dengan pendekatan **LangGraph Cyclic Flow** yang menawarkan:
 
-* **One-Shot Booking:** *"Pesenin tiket Dune jam 7 malem buat 2 orang dong."* (Langsung diproses tanpa tanya satu-satu).
-* **Contextual Awareness:** Paham *"yang jam 7 aja deh"* merujuk ke film yang sedang dibicarakan.
-* **Fuzzy Matching:** *"Betmen"* -> *The Batman*, *"Kartun robot"* -> *Transformers*.
-* **Non-Linear Flow:** Bisa loncat dari pilih kursi kembali ke lihat jadwal tanpa error state.
+* **🛡️ Robustness via Guardrails:** Meskipun menggunakan loop ReAct yang fleksibel, agen tetap dijaga oleh *Contextual Tool Definitions* dan *Dynamic System Prompts* agar tidak halusinasi.
+* **🧠 One-Shot Inference:** User bisa langsung perintah: *"Pesenin tiket Dune jam 7 malem buat 2 orang, kursi tengah"* dan agen langsung mengisi formulir internal tanpa bertanya satu per satu.
+* **🔄 Non-Linear Navigation:** User bisa melompat dari langkah konfirmasi kembali ke pemilihan jadwal tanpa merusak *state* aplikasi.
+* **🧩 Fuzzy & Contextual Matching:** Menangani *"film yang ada robotnya"*, *"jam 7 aja"*, atau typo *"betmen"* menggunakan kognisi LLM, bukan RegEx.
 
 ## 🛠️ Cara Install & Jalanin
 
 ```bash
-# 1. Clone repo
-git clone [https://github.com/username/project-tiketa-v2.git](https://github.com/username/project-tiketa-v2.git)
+# 1. Clone repo (V2)
+git clone [https://github.com/RafiASKing/SeventhExperiment.git](https://github.com/RafiASKing/SeventhExperiment.git)
 
 # 2. Install dependencies
 pip install -r requirements.txt
 
 # 3. Setup env
 cp .env.example .env
-# Isi API KEY kamu di .env
+# Masukkan API KEY (OpenAI/Groq/dll)
 
 # 4. Run Agent
 python main.py
