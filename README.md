@@ -2,7 +2,7 @@
 
 ![Status](https://img.shields.io/badge/Status-Active-success) ![Architecture](https://img.shields.io/badge/Architecture-LangGraph_Guarded_Loop-blueviolet)
 
-**Tiketa V2** adalah agen pemesanan tiket bioskop cerdas yang dibangun di atas **LangGraph**. Menggunakan arsitektur *Guarded Cyclic Agent*, sistem ini menggabungkan fleksibilitas penalaran LLM dengan ketangguhan manajemen *state* untuk menangani transaksi kompleks secara natural.
+**Tiketa V2** adalah agen pemesanan tiket bioskop cerdas yang dibangun di atas **LangGraph**. Menggunakan arsitektur *Guarded Looping Agent*, sistem ini menggabungkan fleksibilitas penalaran LLM dengan ketangguhan manajemen *state* untuk menangani transaksi kompleks secara natural.
 
 > 🚨 **ARCHITECTURAL DEEP DIVE:**
 > Repo ini adalah **Re-write total** dari [SixthExperiment](https://github.com/RafiASKing/SixthExperiment) (V1) yang gagal karena pendekatan *State Machine* yang terlalu kaku.
